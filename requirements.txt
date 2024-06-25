@@ -1,0 +1,9 @@
+Flask
+flask-cors
+langchain_community
+langchain
+sentence-transformers
+langchain_google_genai
+numpy
+faiss-cpu
+python-dotenv
