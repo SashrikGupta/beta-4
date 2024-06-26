@@ -7,3 +7,4 @@ google.generativeai
 numpy
 faiss-cpu
 python-dotenv
+pypdf
