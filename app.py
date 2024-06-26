@@ -16,20 +16,25 @@ app = Flask(__name__)
 CORS(app)  # Enable CORS
 chunks = []
 index = None
-API_KEY=os.getenv('GOOGLE_KEY')
+API_KEY = os.getenv('GOOGLE_KEY')
 genai.configure(api_key=API_KEY)
+
+# Get the embedding model
+model = None
 for m in genai.list_models():
     if 'embedContent' in m.supported_generation_methods:
-        print(m.name)
+        model = m.name
+        break
+
+if model is None:
+    raise ValueError("No suitable embedding model found")
 
 def embeder(text):
     sample_text = (text)
 
-    model = 'models/embedding-001'
     embedding = genai.embed_content(model=model,
                                     content=sample_text,
-                                    task_type="retrieval_document",
-                                    )
+                                    task_type="retrieval_document")
     return embedding["embedding"]
 
 def parallel_embedding(chunks):
@@ -41,7 +46,10 @@ def parallel_embedding(chunks):
     return embeddings
 
 def pdf_vector_space(path_to_pdf):
-    global chunks
+    global chunks, index
+    chunks = []  # Clear the chunks list for new PDF
+    index = None  # Reset the index for new PDF
+    
     loader = PyPDFLoader(path_to_pdf)
     pages = loader.load()
     content = [page.page_content for page in pages]
@@ -74,7 +82,6 @@ def pdf_vector_space(path_to_pdf):
     index.add(vectors)
     return index
 
-# Get the data based on the search query
 def data_give(index, search_query):
     search_vector = embeder(search_query)
     search_vector = np.array(search_vector).reshape(1, -1)
@@ -84,9 +91,8 @@ def data_give(index, search_query):
     for i in loc[0]:
         data_to_be_given += chunks[i]
 
-    prompt = "you are given the following data " + data_to_be_given + "now answer the following query" + search_query
-    prompt = prompt + "the answer should be highly comprehensive"
-    llm  = GoogleGenerativeAI(model="gemini-pro", google_api_key=os.getenv("GOOGLE_KEY"))
+    prompt = f"you are given the following data {data_to_be_given} now answer the following query: {search_query}. The answer should be highly comprehensive."
+    llm = GoogleGenerativeAI(model="gemini-pro", google_api_key=os.getenv("GOOGLE_KEY"))
     return llm.invoke(prompt)
 
 @app.route('/ask', methods=['POST'])
